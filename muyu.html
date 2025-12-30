@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博木鱼 - 在线积功德</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden; /* 防止出现滚动条 */
+            user-select: none; /* 禁止选中文本 */
+        }
+
+        h1 {
+            font-weight: 200;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        #counter {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #ffd700; /* 金色 */
+            margin-bottom: 50px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* 木鱼主体 */
+        #woodfish {
+            width: 200px;
+            height: 180px;
+            background: #d4a373;
+            border-radius: 50% 50% 40% 40%;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #9c6644, 0 10px 20px rgba(0,0,0,0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 木鱼上的花纹（眼睛） */
+        #woodfish::after {
+            content: '';
+            width: 140px;
+            height: 20px;
+            background-color: #3e2723;
+            border-radius: 20px;
+            position: absolute;
+            top: 60%;
+        }
+        
+        #woodfish::before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background-color: #3e2723;
+            border-radius: 50%;
+            position: absolute;
+            top: 60%;
+            left: 20px;
+        }
+
+        /* 点击时的按压效果 */
+        #woodfish:active {
+            transform: translateY(10px) scale(0.98);
+            box-shadow: 0 0 0 #9c6644, 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* 浮动文字动画 */
+        .float-text {
+            position: absolute;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+            pointer-events: none; /* 让鼠标事件穿透 */
+            animation: floatUp 1s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(1.2);
+            }
+        }
+
+        .tips {
+            margin-top: 50px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>今日功德</h1>
+    <div id="counter">0</div>
+
+    <div id="woodfish"></div>
+
+    <div class="tips">点击木鱼，净化心灵 (声音已开启)</div>
+
+    <script>
+        const woodfish = document.getElementById('woodfish');
+        const counterDisplay = document.getElementById('counter');
+        
+        // 从浏览器本地存储读取功德数
+        let count = localStorage.getItem('merit_count') ? parseInt(localStorage.getItem('merit_count')) : 0;
+        counterDisplay.innerText = count;
+
+        // 生成声音的函数 (使用 Web Audio API，无需外部文件)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound() {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // 设置音色：正弦波稍微柔和一点，或者用 'triangle' 模拟打击感
+            osc.type = 'triangle'; 
+            // 频率：低沉一点，像木头
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            // 音调快速下降，模拟敲击的闷响
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+
+            // 音量包络：瞬间开始，迅速衰减
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        // 创建浮动文字效果
+        function createFloatText(x, y) {
+            const el = document.createElement('div');
+            el.innerText = '功德 +1';
+            el.className = 'float-text';
+            el.style.left = x + 'px';
+            el.style.top = (y - 50) + 'px'; // 在鼠标上方一点出现
+            document.body.appendChild(el);
+
+            // 动画结束后删除元素，防止DOM节点过多卡顿
+            setTimeout(() => {
+                el.remove();
+            }, 1000);
+        }
+
+        // 点击事件
+        woodfish.addEventListener('mousedown', (e) => {
+            // 1. 增加计数
+            count++;
+            counterDisplay.innerText = count;
+            localStorage.setItem('merit_count', count); // 保存数据
+
+            // 2. 播放声音
+            playSound();
+
+            // 3. 显示特效
+            // 获取点击位置，如果是手机端触摸可能需要调整，这里取元素中心简化处理
+            const rect = woodfish.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top;
+            
+            // 随机一点点偏移，让字看起来自然
+            const randomX = (Math.random() - 0.5) * 40; 
+            createFloatText(centerX - 30 + randomX, centerY);
+        });
+
+        // 键盘空格键也能敲
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                // 模拟点击事件
+                const event = new Event('mousedown');
+                woodfish.dispatchEvent(event);
+                // 视觉上的按下效果
+                woodfish.style.transform = "translateY(10px) scale(0.98)";
+                setTimeout(() => { woodfish.style.transform = "" }, 100);
+            }
+        });
+
+    </script>
+</body>
+</html>
